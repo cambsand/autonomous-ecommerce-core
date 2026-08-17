@@ -1,64 +1,69 @@
-import dataclasses
-from typing import Dict, Any
+from dataclasses import dataclass
+from typing import Dict, Any, List
+from config import config
+from logger import get_logger
 
-@dataclasses.dataclass(frozen=True)
+logger = get_logger("MarketValidator")
+
+@dataclass
 class OpportunityMetrics:
     product_name: str
     selling_price: float
     cogs: float
     estimated_shipping_cost: float
     estimated_cac: float
-    payment_gateway_fee_pct: float = 0.029
-    payment_gateway_fee_fixed: float = 0.30
-    target_min_margin_pct: float = 0.35
-    target_min_markup: float = 4.0
 
 class MarketValidationEngine:
     """
-    Motore di validazione finanziaria per l'infrastruttura e-commerce autonoma.
-    Esegue lo screening matematico delle opportunità prima di qualsiasi allocazione di risorse.
+    Modulo per la validazione economico-finanziaria delle opportunita e-commerce.
     """
+    def __init__(self):
+        logger.info("MarketValidationEngine inizializzato.")
 
-    @staticmethod
-    def evaluate_opportunity(metrics: OpportunityMetrics) -> Dict[str, Any]:
-        actual_markup = metrics.selling_price / metrics.cogs if metrics.cogs > 0 else 0.0
-        gateway_fee = (metrics.selling_price * metrics.payment_gateway_fee_pct) + metrics.payment_gateway_fee_fixed
-        total_unit_cost = metrics.cogs + metrics.estimated_shipping_cost + metrics.estimated_cac + gateway_fee
-        net_profit = metrics.selling_price - total_unit_cost
-        net_margin_pct = net_profit / metrics.selling_price if metrics.selling_price > 0 else 0.0
+    def evaluate_opportunity(self, metrics: OpportunityMetrics) -> Dict[str, Any]:
+        rejection_reasons: List[str] = []
 
-        passed_markup = actual_markup >= metrics.target_min_markup
-        passed_margin = net_margin_pct >= metrics.target_min_margin_pct
-        is_viable = passed_markup and passed_margin
+        # Arrotondamento a 2 decimali per evitare problemi con numeri come 3.9995x
+        markup_factor = round(metrics.selling_price / metrics.cogs, 2)
+        
+        gross_profit = metrics.selling_price - metrics.cogs
+        total_unit_cost = metrics.cogs + metrics.estimated_shipping_cost + metrics.estimated_cac
+        net_profit_per_unit = round(metrics.selling_price - total_unit_cost, 2)
+        net_margin_pct = round((net_profit_per_unit / metrics.selling_price) * 100, 2) if metrics.selling_price > 0 else 0.0
+
+        # Verifiche criteri minimi di sostenibilita
+        if markup_factor < config.MIN_MARKUP_FACTOR:
+            rejection_reasons.append(f"Markup insufficiente ({markup_factor:.2f}x < {config.MIN_MARKUP_FACTOR}x)")
+
+        if net_margin_pct < config.MIN_NET_MARGIN_PCT:
+            rejection_reasons.append(f"Margine netto insufficiente ({net_margin_pct}% < {config.MIN_NET_MARGIN_PCT}%)")
+
+        is_viable = len(rejection_reasons) == 0
 
         return {
             "product_name": metrics.product_name,
+            "selling_price": metrics.selling_price,
+            "cogs": metrics.cogs,
+            "markup_factor": markup_factor,
+            "gross_profit": gross_profit,
+            "net_profit_per_unit": net_profit_per_unit,
+            "net_margin_pct": net_margin_pct,
             "is_viable": is_viable,
-            "net_profit_per_unit": round(net_profit, 2),
-            "net_margin_pct": round(net_margin_pct * 100, 2),
-            "actual_markup": round(actual_markup, 2),
-            "rejection_reasons": [
-                reason for reason, passed in [
-                    (f"Markup insufficiente ({actual_markup:.2f}x < {metrics.target_min_markup}x)", passed_markup),
-                    (f"Margine netto insufficiente ({net_margin_pct*100:.2f}% < {metrics.target_min_margin_pct*100}%)", passed_margin)
-                ] if not passed
-            ]
+            "rejection_reasons": rejection_reasons
         }
 
 if __name__ == "__main__":
-    test_product = OpportunityMetrics(
-        product_name="Ergonomic Lumbar Support",
-        selling_price=79.99,
-        cogs=12.50,
-        estimated_shipping_cost=6.00,
-        estimated_cac=22.00
-    )
-
     engine = MarketValidationEngine()
-    result = engine.evaluate_opportunity(test_product)
-    
-    print("--- ESITO VALIDAZIONE OPPORTUNITÀ ---")
-    print(f"Prodotto: {result['product_name']}")
-    print(f"Approvato: {result['is_viable']}")
-    print(f"Profitto Netto: €{result['net_profit_per_unit']}")
-    print(f"Margine Netto: {result['net_margin_pct']}%")
+    test_metrics = OpportunityMetrics(
+        product_name="Ergonomic Lumbar Support",
+        selling_price=80.00,
+        cogs=20.00,
+        estimated_shipping_cost=8.00,
+        estimated_cac=15.13
+    )
+    res = engine.evaluate_opportunity(test_metrics)
+    print("\n--- ESITO VALIDAZIONE OPPORTUNITA ---")
+    print(f"Prodotto: {res['product_name']}")
+    print(f"Approvato: {res['is_viable']}")
+    print(f"Profitto Netto: EUR {res['net_profit_per_unit']}")
+    print(f"Margine Netto: {res['net_margin_pct']}%")
