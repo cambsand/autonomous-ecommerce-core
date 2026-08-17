@@ -1,3 +1,4 @@
+from config import config
 from logger import get_logger
 from trend_analyzer import TrendAnalyzerEngine
 from market_validator import MarketValidationEngine, OpportunityMetrics
@@ -8,7 +9,7 @@ logger = get_logger("MainPipeline")
 
 logger.info("Avvio della pipeline autonoma e-commerce...")
 
-# Inizializzazione di tutti i motori, incluso il database
+# Inizializzazione motori
 trend_engine = TrendAnalyzerEngine()
 validator_engine = MarketValidationEngine()
 generator_engine = ContentGeneratorEngine()
@@ -23,12 +24,13 @@ for item in trends:
     if item["is_hot"]:
         logger.info(f"Analisi redditivita per candidato HOT: {item['product_name']}")
         
+        # Iniezione dinamica dei parametri da config.py
         metrics = OpportunityMetrics(
             product_name=item["product_name"],
             selling_price=item["suggested_price"],
             cogs=item["cogs"],
-            estimated_shipping_cost=5.00,
-            estimated_cac=15.00
+            estimated_shipping_cost=config.DEFAULT_SHIPPING_COST,
+            estimated_cac=config.DEFAULT_CAC
         )
         
         evaluation = validator_engine.evaluate_opportunity(metrics)
@@ -42,7 +44,6 @@ for item in trends:
             evaluation["selling_price"] = item["suggested_price"]
             evaluation["description"] = copy
             
-            # Salvataggio automatico su DB SQLite
             db_engine.save_product(evaluation)
             winning_products.append(evaluation)
             
