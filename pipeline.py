@@ -1,20 +1,26 @@
+from logger import get_logger
 from trend_analyzer import TrendAnalyzerEngine
 from market_validator import MarketValidationEngine, OpportunityMetrics
 from content_generator import ContentGeneratorEngine
 
-# 1. Inizializzazione di tutti i motori dell'infrastruttura
+logger = get_logger("MainPipeline")
+
+logger.info("Avvio della pipeline autonoma e-commerce...")
+
+# 1. Inizializzazione motori
 trend_engine = TrendAnalyzerEngine()
 validator_engine = MarketValidationEngine()
 generator_engine = ContentGeneratorEngine()
 
-print("=== 1. SCANSIONE TREND E ANALISI MERCATO ===")
+logger.info("Inizio scansione prodotti di tendenza...")
 trends = trend_engine.fetch_trending_opportunities()
 
 winning_products = []
 
-print("\n=== 2. SCREENING FINANZIARIO E GENERAZIONE COPYWRITING ===")
 for item in trends:
     if item["is_hot"]:
+        logger.info(f"Analisi redditivita per candidato HOT: {item['product_name']}")
+        
         metrics = OpportunityMetrics(
             product_name=item["product_name"],
             selling_price=item["suggested_price"],
@@ -26,7 +32,6 @@ for item in trends:
         evaluation = validator_engine.evaluate_opportunity(metrics)
         
         if evaluation["is_viable"]:
-            # Generazione automatica del copy per i soli prodotti promossi
             copy = generator_engine.generate_description(
                 product_name=evaluation["product_name"], 
                 category=item["category"]
@@ -35,11 +40,8 @@ for item in trends:
             evaluation["description"] = copy
             winning_products.append(evaluation)
             
-            print(f"\n[APPROVATO] {evaluation['product_name']}")
-            print(f"  └ Margine Netto: {evaluation['net_margin_pct']}% | Profitto Unitario: EUR {evaluation['net_profit_per_unit']}")
-            print(f"  └ Descrizione Generata:\n    \"{copy}\"")
+            logger.info(f"PRODOTTO APPROVATO: {evaluation['product_name']} | Margine: {evaluation['net_margin_pct']}% | Profitto: EUR {evaluation['net_profit_per_unit']}")
         else:
-            print(f"\n[SCARTATO]  {evaluation['product_name']}")
-            print(f"  └ Motivo: {evaluation['rejection_reasons']}")
+            logger.warning(f"PRODOTTO SCARTATO: {evaluation['product_name']} | Motivo: {evaluation['rejection_reasons']}")
 
-print(f"\n=== REPORT FINALE: {len(winning_products)} SCHEDE PRODOTTO COMPLETE E PRONTE ===")
+logger.info(f"Esecuzione completata. Trovati {len(winning_products)} prodotti idonei.")
