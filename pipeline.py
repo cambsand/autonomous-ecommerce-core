@@ -2,15 +2,17 @@ from logger import get_logger
 from trend_analyzer import TrendAnalyzerEngine
 from market_validator import MarketValidationEngine, OpportunityMetrics
 from content_generator import ContentGeneratorEngine
+from database import DatabaseEngine
 
 logger = get_logger("MainPipeline")
 
 logger.info("Avvio della pipeline autonoma e-commerce...")
 
-# 1. Inizializzazione motori
+# Inizializzazione di tutti i motori, incluso il database
 trend_engine = TrendAnalyzerEngine()
 validator_engine = MarketValidationEngine()
 generator_engine = ContentGeneratorEngine()
+db_engine = DatabaseEngine()
 
 logger.info("Inizio scansione prodotti di tendenza...")
 trends = trend_engine.fetch_trending_opportunities()
@@ -37,11 +39,15 @@ for item in trends:
                 category=item["category"]
             )
             
+            evaluation["selling_price"] = item["suggested_price"]
             evaluation["description"] = copy
+            
+            # Salvataggio automatico su DB SQLite
+            db_engine.save_product(evaluation)
             winning_products.append(evaluation)
             
-            logger.info(f"PRODOTTO APPROVATO: {evaluation['product_name']} | Margine: {evaluation['net_margin_pct']}% | Profitto: EUR {evaluation['net_profit_per_unit']}")
+            logger.info(f"PRODOTTO APPROVATO E SALVATO: {evaluation['product_name']} | Margine: {evaluation['net_margin_pct']}% | Profitto: EUR {evaluation['net_profit_per_unit']}")
         else:
             logger.warning(f"PRODOTTO SCARTATO: {evaluation['product_name']} | Motivo: {evaluation['rejection_reasons']}")
 
-logger.info(f"Esecuzione completata. Trovati {len(winning_products)} prodotti idonei.")
+logger.info(f"Esecuzione completata. Salvati {len(winning_products)} prodotti idonei nel database.")
