@@ -1,40 +1,63 @@
-import random
 from typing import List, Dict, Any
+from logger import get_logger
+from resilience import retry_on_failure
+
+logger = get_logger("TrendAnalyzer")
 
 class TrendAnalyzerEngine:
     """
-    Modulo per l'individuazione di prodotti potenziali ad alta domanda.
-    Simula l'estrazione di dati sui trend di ricerca e sui volumi social.
+    Modulo per l'estrazione delle opportunità di mercato.
+    In produzione effettuerà chiamate HTTP a Google Trends, TikTok e Amazon.
     """
-
+    
     def __init__(self):
-        # Database simulato di nicchie e prodotti
-        self.candidate_products = [
-            {"name": "Ergonomic Lumbar Support", "cogs": 12.50, "estimated_price": 79.99, "category": "Office/Wellness"},
-            {"name": "Portable Neck Fan", "cogs": 4.20, "estimated_price": 19.99, "category": "Gadgets"},
-            {"name": "Posture Corrector Brace", "cogs": 3.80, "estimated_price": 34.99, "category": "Health"},
-            {"name": "Smart Water Bottle", "cogs": 15.00, "estimated_price": 49.99, "category": "Fitness"},
+        logger.info("TrendAnalyzerEngine inizializzato.")
+
+    @retry_on_failure(retries=3, delay=2.0)
+    def fetch_trending_opportunities(self) -> List[Dict[str, Any]]:
+        """
+        Recupera le opportunità di tendenza.
+        Protetto con retry automatico in caso di disconnessioni di rete.
+        """
+        logger.info("Connessione ai provider di dati di mercato in corso...")
+        
+        # Simulazione payload dati API di mercato
+        return [
+            {
+                "product_name": "Ergonomic Lumbar Support",
+                "category": "Office/Wellness",
+                "trend_score": 8.1,
+                "is_hot": True,
+                "suggested_price": 79.99,
+                "cogs": 20.00
+            },
+            {
+                "product_name": "Portable Neck Fan",
+                "category": "Gadgets",
+                "trend_score": 8.1,
+                "is_hot": True,
+                "suggested_price": 19.99,
+                "cogs": 5.00
+            },
+            {
+                "product_name": "Posture Corrector Brace",
+                "category": "Wellness",
+                "trend_score": 6.6,
+                "is_hot": False,
+                "suggested_price": 34.99,
+                "cogs": 10.00
+            },
+            {
+                "product_name": "Smart Water Bottle",
+                "category": "Fitness",
+                "trend_score": 9.7,
+                "is_hot": True,
+                "suggested_price": 49.99,
+                "cogs": 15.00
+            }
         ]
 
-    def fetch_trending_opportunities(self) -> List[Dict[str, Any]]:
-        opportunities = []
-        for prod in self.candidate_products:
-            trend_score = round(random.uniform(6.5, 9.8), 1)
-            opportunities.append({
-                "product_name": prod["name"],
-                "category": prod["category"],
-                "cogs": prod["cogs"],
-                "suggested_price": prod["estimated_price"],
-                "trend_score": trend_score,
-                "is_hot": trend_score >= 8.0
-            })
-        return opportunities
-
 if __name__ == "__main__":
-    analyzer = TrendAnalyzerEngine()
-    results = analyzer.fetch_trending_opportunities()
-    
-    print("--- SCANSIONE PRODOTTI DI TENDENZA ---")
-    for item in results:
-        status = "🔥 HOT" if item["is_hot"] else "ℹ️ STABILE"
-        print(f"[{status}] {item['product_name']} | Trend Score: {item['trend_score']}/10 | Prezzo Suggerito: €{item['suggested_price']}")
+    engine = TrendAnalyzerEngine()
+    trends = engine.fetch_trending_opportunities()
+    print(f"\n--- TEST TREND ANALYZER: Scansionate {len(trends)} opportunita ---")
