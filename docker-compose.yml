@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  core-engine:
+    build: .
+    container_name: autonomous_ecommerce_core
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./exports:/app/exports
+    env_file:
+      - .env
+    restart: unless-stopped
