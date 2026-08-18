@@ -1,10 +1,15 @@
-name: Autonomous Core CI/CD
+name: Autonomous Core CI/CD & Automated Pipeline
 
 on:
   push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  # Esecuzione programmata automatica ogni giorno alle 08:00 UTC
+  schedule:
+    - cron: "0 8 * * *"
+  # Permette anche l'avvio manuale con un click dal pulsante "Run workflow" su GitHub
+  workflow_dispatch:
 
 jobs:
   test-and-verify:
