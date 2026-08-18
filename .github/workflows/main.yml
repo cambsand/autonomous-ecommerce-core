@@ -2,9 +2,9 @@ name: Autonomous Core CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
 
 jobs:
   test-and-verify:
@@ -28,6 +28,6 @@ jobs:
       run: |
         python main.py
 
-    - name: Verify Database and Export Files
+    - name: Verify Database Status
       run: |
         python -c "import sqlite3; conn = sqlite3.connect('data/ecommerce_core.db'); print('DB Status OK')"
