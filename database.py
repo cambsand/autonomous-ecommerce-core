@@ -1,62 +1,64 @@
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 from logger import get_logger
 
 logger = get_logger("DatabaseManager")
-DB_PATH = Path("data/ecommerce.db")
 
-class DatabaseEngine:
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DB_PATH = DATA_DIR / "ecommerce_core.db"
+
+class DatabaseManager:
+    """
+    Gestore del database SQLite per l'archiviazione e persistenza dei prodotti vincenti.
+    """
     def __init__(self):
-        DB_PATH.parent.mkdir(exist_ok=True)
-        self._init_db()
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.init_db()
 
-    def _get_connection(self):
+    def get_connection(self):
         return sqlite3.connect(DB_PATH)
 
-    def _init_db(self):
-        with self._get_connection() as conn:
+    def init_db(self):
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS winning_products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    product_name TEXT UNIQUE NOT NULL,
-                    selling_price REAL NOT NULL,
-                    net_profit REAL NOT NULL,
-                    net_margin_pct REAL NOT NULL,
-                    description TEXT NOT NULL,
+                    product_name TEXT NOT NULL,
+                    category TEXT,
+                    selling_price REAL,
+                    cogs REAL,
+                    markup_factor REAL,
+                    net_margin_pct REAL,
+                    net_profit_per_unit REAL,
+                    description TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             conn.commit()
         logger.info("Database SQLite inizializzato e tabelle verificate.")
 
-    def save_product(self, product_data: Dict[str, Any]) -> bool:
-        query = """
-            INSERT INTO winning_products (product_name, selling_price, net_profit, net_margin_pct, description)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(product_name) DO UPDATE SET
-                selling_price=excluded.selling_price,
-                net_profit=excluded.net_profit,
-                net_margin_pct=excluded.net_margin_pct,
-                description=excluded.description
-        """
-        try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, (
-                    product_data["product_name"],
-                    product_data.get("selling_price", 0.0),
-                    product_data["net_profit_per_unit"],
-                    product_data["net_margin_pct"],
-                    product_data["description"]
-                ))
-                conn.commit()
-            logger.info(f"Prodotto salvato a DB: {product_data['product_name']}")
-            return True
-        except Exception as e:
-            logger.error(f"Errore durante il salvataggio a DB del prodotto {product_data['product_name']}: {e}")
-            return False
+    def save_winning_product(self, product: Dict[str, Any]):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO winning_products 
+                (product_name, category, selling_price, cogs, markup_factor, net_margin_pct, net_profit_per_unit, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                product["product_name"],
+                product.get("category", ""),
+                product["selling_price"],
+                product["cogs"],
+                product["markup_factor"],
+                product["net_margin_pct"],
+                product["net_profit_per_unit"],
+                product.get("description", "")
+            ))
+            conn.commit()
+        logger.info(f"Prodotto salvato a database: {product['product_name']}")
 
-# Test rapido di inizializzazione
-db = DatabaseEngine()
+if __name__ == "__main__":
+    db = DatabaseManager()
