@@ -24,6 +24,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Create mock env file and directories
+      run: |
+        mkdir -p data exports
+        touch .env
+
     - name: Run Pipeline Smoke Test
       run: |
         python main.py
